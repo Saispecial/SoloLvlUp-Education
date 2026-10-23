@@ -1,0 +1,32 @@
+export function newId(){const b=crypto.getRandomValues(new Uint8Array(16));b[6]=(b[6]&15)|64;b[8]=(b[8]&63)|128;const h=Array.from(b,x=>x.toString(16).padStart(2,"0")).join("");return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;}
+export const attributes = [
+ {id:'Intellectual',icon:'brain',color:'#8d89ff',description:'Think deeply. Build understanding.',skills:['Conceptual reasoning','Problem solving','Digital literacy']},
+ {id:'Fitness',icon:'activity',color:'#64d7b1',description:'Move with intention. Build your energy.',skills:['Physical literacy','Movement planning','Recovery awareness']},
+ {id:'Emotional',icon:'heart',color:'#f495b3',description:'Understand yourself. Respond thoughtfully.',skills:['Emotional awareness','Constructive coping','Help seeking']},
+ {id:'Social',icon:'users',color:'#f4bc70',description:'Connect, collaborate and contribute.',skills:['Communication','Collaboration','Leadership']},
+ {id:'Spiritual',icon:'sparkles',color:'#a9b9d6',description:'Explore purpose, values and meaning.',skills:['Ethical reasoning','Purpose reflection','Service']}
+];
+export function recommend(profile,quests){
+ const open=quests.filter(q=>q.student===profile.id&&!['verified','cancelled'].includes(q.status));
+ if(profile.minutes<25)return {reason:'You have a shorter daily time window. Start with a focused activity and keep the same learning goal.',quest:open.slice().sort((a,b)=>a.minutes-b.minutes)[0]};
+ return {reason:'This sample learning pathway focuses on applying a concept. Connect a concept to a real-world example.',quest:open.find(q=>q.attribute==='Intellectual')||open[0]};
+}
+export function reviewQuest(state,id,reviewer,decision,feedback,ratings){
+ if(!['teacher','mentor'].includes(reviewer))throw Error('Review permission required');
+ const q=state.quests.find(q=>q.id===id);if(!q||q.status!=='submitted')throw Error('Only submitted evidence can be reviewed');
+ if(!feedback.trim())throw Error('Add feedback before recording a decision');
+ if(decision==='verified'&&(!ratings||ratings.length!==3||ratings.some(x=>x<1||x>4)))throw Error('Assess all rubric criteria');
+ const event={id:newId(),quest:id,student:q.student,type:decision,at:new Date().toISOString(),by:reviewer,feedback,ratings:ratings||[]};
+ return {...state,quests:state.quests.map(x=>x.id===id?{...x,status:decision,feedback,ratings:ratings||[],reviewedAt:event.at}:x),events:[event,...state.events],rewards:decision==='verified'&&!state.rewards.some(x=>x.quest===id)?[...state.rewards,{quest:id,student:q.student,points:q.xp}]:state.rewards};
+}
+export function seed(){return {
+ profiles:[{id:'aarav',name:'Aarav Sharma',initials:'AS',section:'Year 1 · Section A',minutes:30,goal:'Explain ideas confidently',interest:'Technology & design',onboarded:true},{id:'meera',name:'Meera Rao',initials:'MR',section:'Year 1 · Section A',minutes:15,goal:'Build a consistent learning routine',interest:'Science & community',onboarded:true},{id:'kabir',name:'Kabir Das',initials:'KD',section:'Year 1 · Section B',minutes:45,goal:'Apply knowledge through projects',interest:'Engineering',onboarded:true}],
+ quests:[
+ {id:'q1',student:'aarav',title:'Turn a concept into a real-world solution',attribute:'Intellectual',skill:'Problem solving',minutes:25,xp:60,status:'assigned',description:'Choose a concept from your current subject. Describe a real-world problem, apply the concept, and explain one limitation.',criteria:['Explain the concept accurately','Apply it to a clear example','Discuss a limitation'],evidence:'',feedback:''},
+ {id:'q2',student:'aarav',title:'Make your voice heard',attribute:'Social',skill:'Communication',minutes:15,xp:40,status:'submitted',description:'Prepare a short explanation of a topic. Ask a peer what was clear and what could improve.',criteria:['Organise the explanation','Use an audience-appropriate example','Respond to feedback'],evidence:'I explained renewable energy to my project group. I used a rooftop solar example. My peer asked how cloudy days affect output, so I added a limitation and a comparison.',feedback:'',submittedAt:new Date().toISOString()},
+ {id:'q3',student:'aarav',title:'A little movement, a better day',attribute:'Fitness',skill:'Movement planning',minutes:10,xp:20,status:'assigned',description:'Choose an accessible movement activity and plan when it fits your day. Adapt it to your ability and comfort.',criteria:['Choose an appropriate activity','Create a realistic plan','Reflect on feasibility'],evidence:'',feedback:''},
+ {id:'q4',student:'aarav',title:'Pause, notice, choose',attribute:'Emotional',skill:'Constructive coping',minutes:8,xp:20,status:'assigned',description:'Read a scenario about a missed deadline. Describe a constructive response and how someone could ask for help. Personal experiences are optional.',criteria:['Identify a possible feeling without assuming','Suggest a constructive response','Identify a source of help'],evidence:'',feedback:''},
+ {id:'q5',student:'aarav',title:'What matters in a difficult decision?',attribute:'Spiritual',skill:'Ethical reasoning',minutes:12,xp:25,status:'assigned',description:'Consider a team deciding how to share limited resources. Explain two values involved and a fair decision process. No religious belief is assessed.',criteria:['Identify relevant values','Consider different perspectives','Explain a fair process'],evidence:'',feedback:''},
+ {id:'q6',student:'meera',title:'One concept, one clear example',attribute:'Intellectual',skill:'Conceptual reasoning',minutes:12,xp:30,status:'assigned',description:'Pick one concept and explain it in a short paragraph with an example.',criteria:['Accurate explanation','Relevant example','Clear structure'],evidence:'',feedback:''},
+ {id:'q7',student:'kabir',title:'Prototype a water-saving idea',attribute:'Intellectual',skill:'Problem solving',minutes:40,xp:70,status:'verified',description:'Outline a water-saving prototype and explain assumptions.',criteria:['Clear problem','Feasible application','Limitations'],evidence:'A gravity-fed collection design with a simple maintenance plan.',feedback:'Good application. Next, test one assumption.',ratings:[3,3,2]}
+ ],events:[],rewards:[{quest:'q7',student:'kabir',points:70}],interventions:[{id:'i1',student:'meera',reason:'Coordinate shorter study activities around travel time',action:'Agree on two 12-minute activities this week',status:'open',owner:'Class mentor'}],reflections:{},joined:[],notices:[]};}
